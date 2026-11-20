@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef, useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { Check, Search, Trash2, X } from 'lucide-react';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { PWAInstallButton } from './components/PWAInstallButton';
 
 type Prioridad = 'Baja' | 'Media' | 'Alta';
+type FiltroPrioridad = 'Todas' | 'Alta' | 'Media' | 'Baja';
 
 interface Actividad {
   id: number;
@@ -19,6 +20,7 @@ interface Actividad {
 }
 
 const NIVELES_PRIORIDAD: Prioridad[] = ['Baja', 'Media', 'Alta'];
+const FILTROS_PRIORIDAD: FiltroPrioridad[] = ['Todas', 'Alta', 'Media', 'Baja'];
 
 const ESTILOS_PRIORIDAD: Record<Prioridad, { texto: string; botonActivo: string }> = {
   Alta: {
@@ -64,9 +66,21 @@ export default function App() {
   const [textoActividad, setTextoActividad] = useState('');
   const [fechaActividad, setFechaActividad] = useState('');
   const [prioridadActividad, setPrioridadActividad] = useState<Prioridad>('Media');
+  const [busqueda, setBusqueda] = useState('');
+  const [filtroPrioridad, setFiltroPrioridad] = useState<FiltroPrioridad>('Todas');
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
   const siguienteId = useRef(1);
+
+  const actividadesFiltradas = useMemo(() => {
+    const termino = busqueda.trim().toLowerCase();
+    return actividades.filter((item) => {
+      const coincideTexto = !termino || item.titulo.toLowerCase().includes(termino);
+      const coincidePrioridad =
+        filtroPrioridad === 'Todas' || item.prioridad === filtroPrioridad;
+      return coincideTexto && coincidePrioridad;
+    });
+  }, [actividades, busqueda, filtroPrioridad]);
 
   const agregarActividad = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,11 +137,12 @@ export default function App() {
           </div>
         </header>
 
-        {/* Contenido principal optimizado para pulgar y uso táctil */}
-        <main className="flex-1 flex flex-col px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] overflow-hidden">
+        {/* Contenido principal desplazable optimizado para teléfono */}
+        <main className="flex-1 overflow-y-auto overscroll-contain no-scrollbar px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] space-y-4">
           <OfflineIndicator />
 
-          <form onSubmit={agregarActividad} noValidate className="shrink-0 space-y-3">
+          {/* Formulario de creación */}
+          <form onSubmit={agregarActividad} noValidate className="space-y-3">
             <div>
               <label
                 htmlFor="campo-actividad"
@@ -213,17 +228,74 @@ export default function App() {
             </button>
           </form>
 
-          {/* Lista táctil en memoria */}
-          <div className="flex-1 mt-4 overflow-y-auto overscroll-contain no-scrollbar">
-            {actividades.length === 0 ? (
-              <div className="h-full flex items-center justify-center px-6 text-center">
+          {/* Barra de búsqueda + selector de filtros por prioridad */}
+          <div className="pt-3 border-t border-zinc-200/80 space-y-2.5">
+            <div className="relative flex items-center">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 pointer-events-none" />
+              <input
+                id="barra-busqueda"
+                type="search"
+                aria-label="Buscar actividad"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar actividad..."
+                className="w-full min-h-[44px] rounded-xl bg-white border border-zinc-300 pl-10 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600 select-text"
+              />
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => setBusqueda('')}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-0 min-w-[44px] min-h-[44px] flex items-center justify-center text-zinc-400 hover:text-zinc-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Selector de filtros debajo de la barra de búsqueda */}
+            <div
+              role="group"
+              aria-label="Filtrar por prioridad"
+              className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-zinc-200/70 border border-zinc-200"
+            >
+              {FILTROS_PRIORIDAD.map((filtro) => {
+                const activo = filtroPrioridad === filtro;
+                return (
+                  <button
+                    key={filtro}
+                    type="button"
+                    aria-pressed={activo}
+                    onClick={() => {
+                      vibrar(8);
+                      setFiltroPrioridad(filtro);
+                    }}
+                    className={`min-h-[38px] rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+                      activo
+                        ? 'bg-white text-zinc-900 shadow-xs'
+                        : 'text-zinc-600 hover:text-zinc-900'
+                    }`}
+                  >
+                    {filtro}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Lista filtrada de actividades en memoria */}
+          <div>
+            {actividadesFiltradas.length === 0 ? (
+              <div className="py-10 px-4 text-center">
                 <p className="text-sm text-zinc-500 leading-relaxed">
-                  No hay actividades todavía. Escribe una arriba para comenzar.
+                  {actividades.length === 0
+                    ? 'No hay actividades todavía. Escribe una arriba para comenzar.'
+                    : 'No hay actividades que coincidan con el filtro.'}
                 </p>
               </div>
             ) : (
               <ul className="space-y-2 pb-safe">
-                {actividades.map((actividad) => (
+                {actividadesFiltradas.map((actividad) => (
                   <li
                     key={actividad.id}
                     className="flex items-center gap-1 rounded-2xl bg-white px-2 py-1.5 border border-zinc-200/80"
