@@ -1,0 +1,6 @@
+{
+  "name": "Pulso",
+  "description": "Aplicación móvil exclusiva para teléfonos: agenda diaria, seguimiento de hábitos y temporizador de enfoque con funcionamiento offline.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
